@@ -1,0 +1,241 @@
+#!/usr/bin/env python3
+"""Talk to the Grok Bot agents on the sandbox box, directly and live.
+
+    grok ls                          roster: index, id, harness, state, name
+    grok ask <agent> <prompt...>     send, then stream the reply until it ends
+    grok tail <agent> [-n N]         last N transcript entries
+    grok watch <agent>               follow the transcript as it grows
+    grok find <text> [-n N]          full-text search across every bot's transcript
+    grok new <name> [--harness box]  create an agent (mutating)
+    grok raw <method> [json]         any gateway RPC, for when this tool is wrong
+
+<agent> is an index from `ls`, an id prefix, or a case-insensitive name substring.
+
+Why it is shaped this way
+-------------------------
+The gateway lives on the box and the token lives beside it in
+/home/box/sand-data/gateway.json. Nothing here ever reads that file locally, and
+no prompt or token is ever passed as an argv word on the remote side: the payload
+below is hex-embedded in `python3 -c`, and the request rides in on stdin. That is
+the same seam server/remote.ts uses, for the same reason -- argv is world-readable
+through /proc/<pid>/cmdline.
+
+Two bugs this deliberately does not have:
+
+* Replies are bound to a *turn*. Transcript ids are turn-scoped (`t41u` for the
+  user message, `t41s0..N` for the agent's), so after sendPrompt we find our own
+  user entry by marker and read only that turn. A neighbouring conversation can
+  never be mistaken for our answer.
+* Completion is a sentinel, not silence. Nearly every agent on the box runs
+  `harness: temporal` (11 of the 12 on your box, measured 2026-09-21) and does a
+  live web search that is silent for minutes; a quiet timer walks away mid-answer.
+  The quiet window survives only as a backstop.
+"""
+import argparse
+import json
+import os
+import shlex
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+
+HOST = os.environ.get("GROK_HOST", "")
+SENTINEL = "=== END ==="
+
+REMOTE = (Path(__file__).resolve().parent / "grok_remote.py").read_text()
+
+
+def run(req, on_event):
+    """One ssh, one remote python, NDJSON streamed back as it happens."""
+    if not HOST:
+        # without this the failure surfaces as ssh's "Host key verification failed",
+        # which says nothing about the actual problem
+        print("GROK_HOST is not set — export GROK_HOST=user@your-box", file=sys.stderr)
+        return 2
+    # the payload reads the request off stdin itself, so nothing lands in argv
+    boot = ("exec(bytes.fromhex('%s'),{'__name__':'__main__'})" % REMOTE.encode().hex())
+    # ssh concatenates its remote words and hands them to the far shell, so the
+    # payload has to be quoted for THAT shell, not just for argv
+    argv = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=15",
+            HOST, "python3 -c " + shlex.quote(boot)]
+    p = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE, text=True, bufsize=1)
+    p.stdin.write(json.dumps(req))
+    p.stdin.close()
+    for line in p.stdout:
+        line = line.strip()
+        if line:
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                print(line)
+                continue
+            if event.get("kind") == "error":
+                print(event["text"], file=sys.stderr)
+                continue
+            on_event(event)
+    err = p.stderr.read().strip()
+    rc = p.wait()
+    if rc and err:
+        print(err, file=sys.stderr)
+    return rc
+
+
+def when(ms):
+    """Today as a clock time, older as a date -- the way a chat list reads."""
+    if not ms:
+        return ""
+    t = datetime.fromtimestamp(ms / 1000)
+    return t.strftime("%H:%M") if t.date() == datetime.now().date() else t.strftime("%d %b")
+
+
+def cmd_ls(args):
+    rows = []
+
+    def ev(e):
+        if e.get("kind") == "agent":
+            rows.append(e)
+    rc = run({"cmd": "ls", "sentinel": SENTINEL, "preview": bool(args.preview)}, ev)
+    if rows:
+        name_w = 34 if args.preview else 58
+        print("%-3s %-8s %-9s %-8s %-6s %s" % ("#", "id", "harness", "state", "when", "name"))
+        for r in rows:
+            state = "running" if r["running"] else ("active" if r["active"] else "idle")
+            line = "%-3d %-8s %-9s %-8s %-6s %s" % (
+                r["i"], r["id"][:8], r["harness"] or "-", state,
+                when(r.get("updated")), r["name"][:name_w])
+            if args.preview and r.get("preview"):
+                line += "  — %s" % r["preview"][:70]
+            print(line)
+        print("\n%d agents on %s, newest first" % (len(rows), HOST))
+    return rc
+
+
+def cmd_ask(args):
+    prompt = " ".join(args.prompt)
+    if not args.raw_prompt:
+        prompt += ("\n\nWhen you have finished answering, write the line %s on its own."
+                   % SENTINEL)
+    state = {"chunks": 0}
+
+    def ev(e):
+        k = e.get("kind")
+        if k == "agent" and not args.quiet:
+            print("→ %s  [%s]  %s" % (e["id"][:8], e.get("harness") or "-", e.get("name", "")[:60]),
+                  file=sys.stderr)
+        elif k == "chunk":
+            text = e["text"]
+            if args.quiet:
+                text = text.replace(SENTINEL, "").rstrip()
+            print(text, flush=True)
+            state["chunks"] += 1
+        elif k == "warn":
+            print("! %s" % e["text"], file=sys.stderr)
+        elif k == "end" and not args.quiet:
+            print("— %s (%d chunks)" % (e["reason"], state["chunks"]), file=sys.stderr)
+    return run({"cmd": "ask", "agent": args.agent, "prompt": prompt, "sentinel": SENTINEL,
+                "poll": args.poll, "quiet": args.quiet_after, "deadline": args.deadline}, ev)
+
+
+def cmd_tail(args):
+    def ev(e):
+        if e.get("kind") == "agent":
+            print("→ %s  [%s]  %s" % (e["id"][:8], e.get("harness") or "-", e.get("name", "")[:60]),
+                  file=sys.stderr)
+        elif e.get("kind") == "entry" and e.get("text"):
+            print("[%s] %s" % (e.get("role") or "?", e["text"]), flush=True)
+    cmd = "watch" if args.follow else "tail"
+    return run({"cmd": cmd, "agent": args.agent, "limit": args.n, "sentinel": SENTINEL,
+                "poll": args.poll, "deadline": args.deadline}, ev)
+
+
+def cmd_find(args):
+    n = [0]
+
+    def ev(e):
+        if e.get("kind") == "hit":
+            n[0] += 1
+            when = ""
+            if e.get("ts"):
+                when = datetime.fromtimestamp(e["ts"] / 1000).strftime("%m-%d %H:%M")
+            print("%-8s %-6s %-11s %-22s %s" % (e["id"][:8], e.get("entry", ""), when,
+                                                e.get("name", "")[:22], e.get("snippet", "")))
+    rc = run({"cmd": "find", "query": args.query, "limit": args.n, "sentinel": SENTINEL}, ev)
+    if not n[0]:
+        print("no agent matched %r" % args.query)
+    return rc
+
+
+def cmd_new(args):
+    def ev(e):
+        print(json.dumps(e.get("result"), ensure_ascii=False, indent=1))
+    return run({"cmd": "new", "name": " ".join(args.name), "harness": args.harness,
+                "description": args.description, "sentinel": SENTINEL}, ev)
+
+
+def cmd_raw(args):
+    def ev(e):
+        print(json.dumps(e.get("result"), ensure_ascii=False, indent=1))
+    return run({"cmd": "raw", "method": args.method, "sentinel": SENTINEL,
+                "args": json.loads(args.args) if args.args else {}}, ev)
+
+
+def main():
+    ap = argparse.ArgumentParser(prog="grok", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    ls = sub.add_parser("ls", help="list the agents, newest conversation first")
+    ls.add_argument("-p", "--preview", action="store_true", help="also show each agent's last line")
+    ls.set_defaults(fn=cmd_ls)
+
+    a = sub.add_parser("ask", help="send a prompt and stream the reply")
+    a.add_argument("agent")
+    a.add_argument("prompt", nargs="+")
+    a.add_argument("-q", "--quiet", action="store_true", help="answer only, no status lines")
+    a.add_argument("--raw-prompt", action="store_true", help="do not append the sentinel instruction")
+    a.add_argument("--poll", type=int, default=5)
+    a.add_argument("--quiet-after", type=int, default=240, help="backstop; the sentinel is the real stop")
+    a.add_argument("--deadline", type=int, default=1800)
+    a.set_defaults(fn=cmd_ask)
+
+    t = sub.add_parser("tail", help="recent transcript entries")
+    t.add_argument("agent")
+    t.add_argument("-n", type=int, default=20)
+    t.add_argument("-f", "--follow", action="store_true")
+    t.add_argument("--poll", type=int, default=5)
+    t.add_argument("--deadline", type=int, default=900)
+    t.set_defaults(fn=cmd_tail)
+
+    w = sub.add_parser("watch", help="follow the transcript live (tail -f)")
+    w.add_argument("agent")
+    w.add_argument("-n", type=int, default=20)
+    w.add_argument("--poll", type=int, default=5)
+    w.add_argument("--deadline", type=int, default=900)
+    w.set_defaults(fn=cmd_tail, follow=True)
+
+    f = sub.add_parser("find", help="server-side agent search")
+    f.add_argument("query")
+    f.add_argument("-n", type=int, default=20)
+    f.set_defaults(fn=cmd_find)
+
+    nw = sub.add_parser("new", help="create an agent (mutating)")
+    nw.add_argument("name", nargs="+")
+    nw.add_argument("--harness", choices=["temporal", "box"], default="temporal")
+    nw.add_argument("--description", default="", help="what the agent is for (required by the gateway)")
+    nw.set_defaults(fn=cmd_new)
+
+    r = sub.add_parser("raw", help="call any gateway RPC")
+    r.add_argument("method")
+    r.add_argument("args", nargs="?", help="JSON object")
+    r.set_defaults(fn=cmd_raw)
+
+    args = ap.parse_args()
+    if not hasattr(args, "follow"):
+        args.follow = False
+    sys.exit(args.fn(args))
+
+
+if __name__ == "__main__":
+    main()

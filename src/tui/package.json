@@ -1,0 +1,15 @@
+{
+  "name": "grok-tui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Ink TUI for the Grok Bot agents; talks to the box over one ssh, no server.",
+  "scripts": {
+    "start": "bun run grok-tui.tsx"
+  },
+  "dependencies": {
+    "ink": "^6.0.0",
+    "ink-text-input": "^6.0.0",
+    "react": "^19.0.0"
+  }
+}
