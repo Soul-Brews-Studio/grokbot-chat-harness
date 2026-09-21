@@ -105,9 +105,25 @@ second backend is what exposed it.
 
 ## The book
 
-`book/` holds a Thai-language book about building this — the night it was built, the
-four days spent believing a wrong conclusion, and what generalises. The tools came
-first; the book is the account.
+<a href="book/Claude-%E0%B9%80%E0%B8%82%E0%B8%B5%E0%B8%A2%E0%B8%99-GLM-%E0%B8%82%E0%B8%B1%E0%B8%9A-Grok-%E0%B8%95%E0%B8%AD%E0%B8%9A.pdf">
+  <img src="book/cover.png" alt="Claude เขียน · GLM ขับ · Grok ตอบ — cover" width="320" align="right">
+</a>
+
+**Claude เขียน · GLM ขับ · Grok ตอบ** — *สร้าง harness ให้ AI คุม AI — CLI, TUI และ loop
+ที่โมเดลอีกตัวเป็นคนขับ*
+
+98 pages, Thai, written by the same AI that wrote the code. It walks the whole path:
+mapping who talks to whom, reaching a machine that is not yours, the three questions a
+chat-only agent leaves open, the four days spent believing a wrong conclusion, and what
+generalises to anyone building this.
+
+Each chapter opens on the general problem, uses this case as evidence, and closes with
+*"ถ้าคุณจะทำแบบนี้บ้าง"* — what transfers as-is, what depends on the setup, and what you
+have to measure yourself.
+
+📕 **[Download the PDF](book/Claude-%E0%B9%80%E0%B8%82%E0%B8%B5%E0%B8%A2%E0%B8%99-GLM-%E0%B8%82%E0%B8%B1%E0%B8%9A-Grok-%E0%B8%95%E0%B8%AD%E0%B8%9A.pdf)** · [contents and notes](book/)
+
+<br clear="right">
 
 ## Licence
 
