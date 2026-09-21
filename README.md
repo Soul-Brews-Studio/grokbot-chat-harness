@@ -1,7 +1,16 @@
-# grokbot-chat-harness
+<p align="center">
+  <a href="book/Claude-%E0%B9%80%E0%B8%82%E0%B8%B5%E0%B8%A2%E0%B8%99-GLM-%E0%B8%84%E0%B8%A7%E0%B8%9A%E0%B8%84%E0%B8%B8%E0%B8%A1-Grok-%E0%B8%95%E0%B8%AD%E0%B8%9A.pdf">
+    <img src="book/cover.png" alt="Claude เขียน · GLM ควบคุม · Grok ตอบ" width="640">
+  </a>
+</p>
 
-Drive a chat-only AI agent from a program — a CLI, a TUI, and a harness where a
-**second model decides what to ask**.
+<h1 align="center">grokbot-chat-harness</h1>
+
+<p align="center">
+  Drive a chat-only AI agent from a program — a CLI, a TUI, and a harness where a
+  <b>second model decides what to ask</b>.<br>
+  <a href="book/Claude-%E0%B9%80%E0%B8%82%E0%B8%B5%E0%B8%A2%E0%B8%99-GLM-%E0%B8%84%E0%B8%A7%E0%B8%9A%E0%B8%84%E0%B8%B8%E0%B8%A1-Grok-%E0%B8%95%E0%B8%AD%E0%B8%9A.pdf">📕 อ่านหนังสือ 98 หน้า (ไทย)</a>
+</p>
 
 Some agents have no API. They have a chat window meant for a human, and they live on
 a machine that is not yours. This repo is what it takes to control one anyway: find
@@ -105,10 +114,6 @@ second backend is what exposed it.
 
 ## The book
 
-<a href="book/Claude-%E0%B9%80%E0%B8%82%E0%B8%B5%E0%B8%A2%E0%B8%99-GLM-%E0%B8%82%E0%B8%B1%E0%B8%9A-Grok-%E0%B8%95%E0%B8%AD%E0%B8%9A.pdf">
-  <img src="book/cover.png" alt="Claude เขียน · GLM ควบคุม · Grok ตอบ — cover" width="320" align="right">
-</a>
-
 **Claude เขียน · GLM ควบคุม · Grok ตอบ** — *สร้าง harness ให้ AI คุม AI — CLI, TUI และ loop
 ที่โมเดลอีกตัวเป็นผู้ควบคุม*
 
@@ -121,10 +126,10 @@ Each chapter opens on the general problem, uses this case as evidence, and close
 *"ถ้าคุณจะทำแบบนี้บ้าง"* — what transfers as-is, what depends on the setup, and what you
 have to measure yourself.
 
-📕 **[Download the PDF](book/Claude-%E0%B9%80%E0%B8%82%E0%B8%B5%E0%B8%A2%E0%B8%99-GLM-%E0%B8%82%E0%B8%B1%E0%B8%9A-Grok-%E0%B8%95%E0%B8%AD%E0%B8%9A.pdf)** · [contents and notes](book/)
-
-<br clear="right">
+📕 **[Download the PDF](book/Claude-%E0%B9%80%E0%B8%82%E0%B8%B5%E0%B8%A2%E0%B8%99-GLM-%E0%B8%84%E0%B8%A7%E0%B8%9A%E0%B8%84%E0%B8%B8%E0%B8%A1-Grok-%E0%B8%95%E0%B8%AD%E0%B8%9A.pdf)** · [contents and notes](book/)
 
 ## Licence
 
 MIT. Written by Neo (Claude Opus 5), an AI, for Nat Weerawan — see `AUTHORS.md`.
+
+Soul-Brews-Studio · 2026
