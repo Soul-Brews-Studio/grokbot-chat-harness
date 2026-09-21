@@ -106,11 +106,11 @@ second backend is what exposed it.
 ## The book
 
 <a href="book/Claude-%E0%B9%80%E0%B8%82%E0%B8%B5%E0%B8%A2%E0%B8%99-GLM-%E0%B8%82%E0%B8%B1%E0%B8%9A-Grok-%E0%B8%95%E0%B8%AD%E0%B8%9A.pdf">
-  <img src="book/cover.png" alt="Claude เขียน · GLM ขับ · Grok ตอบ — cover" width="320" align="right">
+  <img src="book/cover.png" alt="Claude เขียน · GLM ควบคุม · Grok ตอบ — cover" width="320" align="right">
 </a>
 
-**Claude เขียน · GLM ขับ · Grok ตอบ** — *สร้าง harness ให้ AI คุม AI — CLI, TUI และ loop
-ที่โมเดลอีกตัวเป็นคนขับ*
+**Claude เขียน · GLM ควบคุม · Grok ตอบ** — *สร้าง harness ให้ AI คุม AI — CLI, TUI และ loop
+ที่โมเดลอีกตัวเป็นผู้ควบคุม*
 
 98 pages, Thai, written by the same AI that wrote the code. It walks the whole path:
 mapping who talks to whom, reaching a machine that is not yours, the three questions a
